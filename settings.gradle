@@ -1,2 +1,2 @@
-rootProject.name = "W05-MyFirstIntent"
+rootProject.name = "PokemonGen6"
 include ':app'
