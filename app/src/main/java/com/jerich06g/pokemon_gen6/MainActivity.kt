@@ -19,17 +19,8 @@ class MainActivity : AppCompatActivity() {
 
     // UI references
     private lateinit var recyclerView: RecyclerView
-    private lateinit var scrimView: View
-    private lateinit var bottomPanel: View
-    private lateinit var panelName: TextView
-    private lateinit var panelType: TextView
-    private lateinit var panelEvo: TextView
-    private lateinit var panelLocation: TextView
 
-    // Track whether the bottom panel is showing
-    private var isPanelShowing = false
-
-    // Keep reference to current Snackbar to allow dismiss of it early if needed
+    // Prevent Snackbar from overlapping sheet
     private var currentSnackbar: Snackbar? = null
 
     // SharedPreferences key constants
@@ -49,18 +40,16 @@ class MainActivity : AppCompatActivity() {
 
         // Get refrences to all UI views
         recyclerView = findViewById(R.id.recyclerView)
-        scrimView = findViewById(R.id.scrimView)
-        bottomPanel = findViewById(R.id.bottomPanel)
-        panelName = findViewById(R.id.panelName)
-        panelType = findViewById(R.id.panelType)
-        panelEvo = findViewById(R.id.panelEvo)
-        panelLocation = findViewById(R.id.panelLocation)
 
         // Load Pokemon data from the JSON file
         val pokemonList = loadPokemonFromAssets()
 
         // Set up RecyclerView with vertical list layout
         recyclerView.layoutManager = LinearLayoutManager(this)
+
+        // Keep reference to sheet to all dismiss on finger release
+        var currentSheet : PokemonBottomSheet? = null
+
         recyclerView.adapter = PokemonAdapter(
             context = this,
             pokemonList = pokemonList,
@@ -80,12 +69,15 @@ class MainActivity : AppCompatActivity() {
             onLongPressStart = { pokemon ->
                 currentSnackbar?.dismiss() // kill snackbar before panel appears
                 saveLastClicked(pokemon.name)
-                showBottomPanel(pokemon)
+                currentSheet = PokemonBottomSheet.newInstance(pokemon)
+                // show() displays modal bottom sheet over current Activity
+                currentSheet?.show(supportFragmentManager, "pokemon_sheet")
             },
 
-            // Long press end = hide panel
+            // Dismiss sheet on finger release
             onLongPressEnd = {
-                if (isPanelShowing) hideBottomPanel()
+                currentSheet?.dismiss()
+                currentSheet = null
             }
         )
     }
@@ -104,6 +96,7 @@ class MainActivity : AppCompatActivity() {
                 startActivity(Intent(this, SavedActivity::class.java))
                 true
             }
+
             else -> super.onOptionsItemSelected(item)
         }
     }
@@ -144,36 +137,5 @@ class MainActivity : AppCompatActivity() {
             .edit()
             .putString(KEY_LAST_CLICKED, name)
             .apply() // apply() saves in background preventing interruption
-    }
-
-    // Populate and animate bottom panel into view
-    private fun showBottomPanel(pokemon: Pokemon) {
-        isPanelShowing = true
-
-        // Fill panel text fields
-        panelName.text = pokemon.name
-        panelType.text = "Type: ${pokemon.type}"
-        panelEvo.text = "EVO: ${pokemon.evoLevel}"
-        panelLocation.text = "Where To Find: ${pokemon.location}"
-
-        // Show views and animate panel sliding up from below screen
-        scrimView.visibility = View.VISIBLE
-        bottomPanel.visibility = View.VISIBLE
-        bottomPanel.translationY = bottomPanel.height.toFloat()
-        bottomPanel.animate().translationY(0f).setDuration(250).start()
-    }
-
-    // Slides the bottom panel back down and hides the scrim
-    private fun hideBottomPanel() {
-        isPanelShowing = false
-        bottomPanel.animate()
-            .translationY(bottomPanel.height.toFloat())
-            .setDuration(200)
-            .withEndAction {
-                // Only hide after animation completes to avoid a visual glitch
-                bottomPanel.visibility = View.GONE
-                scrimView.visibility = View.GONE
-            }
-            .start()
     }
 }
